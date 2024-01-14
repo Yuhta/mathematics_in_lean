@@ -42,10 +42,10 @@ theorem my_lemma4 :
     ∀ {x y ε : ℝ}, 0 < ε → ε ≤ 1 → |x| < ε → |y| < ε → |x * y| < ε := by
   intro x y ε epos ele1 xlt ylt
   calc
-    |x * y| = |x| * |y| := sorry
-    _ ≤ |x| * ε := sorry
-    _ < 1 * ε := sorry
-    _ = ε := sorry
+    |x * y| = |x| * |y| := abs_mul _ _
+    _ ≤ |x| * ε := mul_le_mul_of_nonneg_left (le_of_lt ylt) (abs_nonneg _)
+    _ < 1 * ε := mul_lt_mul_of_pos_right (lt_of_lt_of_le xlt ele1) epos
+    _ = ε := one_mul _
 
 def FnUb (f : ℝ → ℝ) (a : ℝ) : Prop :=
   ∀ x, f x ≤ a
@@ -63,15 +63,21 @@ example (hfa : FnUb f a) (hgb : FnUb g b) : FnUb (fun x ↦ f x + g x) (a + b) :
   apply hfa
   apply hgb
 
-example (hfa : FnLb f a) (hgb : FnLb g b) : FnLb (fun x ↦ f x + g x) (a + b) :=
-  sorry
+example (hfa : FnLb f a) (hgb : FnLb g b) : FnLb (fun x ↦ f x + g x) (a + b) := by
+  intro x
+  dsimp
+  apply add_le_add (hfa _) (hgb _)
 
-example (nnf : FnLb f 0) (nng : FnLb g 0) : FnLb (fun x ↦ f x * g x) 0 :=
-  sorry
+example (nnf : FnLb f 0) (nng : FnLb g 0) : FnLb (fun x ↦ f x * g x) 0 := by
+  intro x
+  dsimp
+  apply mul_nonneg (nnf _) (nng _)
 
 example (hfa : FnUb f a) (hgb : FnUb g b) (nng : FnLb g 0) (nna : 0 ≤ a) :
-    FnUb (fun x ↦ f x * g x) (a * b) :=
-  sorry
+    FnUb (fun x ↦ f x * g x) (a * b) := by
+  intro x
+  dsimp
+  apply mul_le_mul (hfa _) (hgb _) (nng _) nna
 
 end
 
@@ -104,10 +110,10 @@ example (mf : Monotone f) (mg : Monotone g) : Monotone fun x ↦ f x + g x :=
   fun a b aleb ↦ add_le_add (mf aleb) (mg aleb)
 
 example {c : ℝ} (mf : Monotone f) (nnc : 0 ≤ c) : Monotone fun x ↦ c * f x :=
-  sorry
+  fun _ _ aleb ↦ mul_le_mul_of_nonneg_left (mf aleb) nnc
 
 example (mf : Monotone f) (mg : Monotone g) : Monotone fun x ↦ f (g x) :=
-  sorry
+  fun _ _ aleb ↦ mf (mg aleb)
 
 def FnEven (f : ℝ → ℝ) : Prop :=
   ∀ x, f x = f (-x)
@@ -123,13 +129,19 @@ example (ef : FnEven f) (eg : FnEven g) : FnEven fun x ↦ f x + g x := by
 
 
 example (of : FnOdd f) (og : FnOdd g) : FnEven fun x ↦ f x * g x := by
-  sorry
+  intro x
+  dsimp
+  rw [of, og, neg_mul_neg]
 
 example (ef : FnEven f) (og : FnOdd g) : FnOdd fun x ↦ f x * g x := by
-  sorry
+  intro x
+  dsimp
+  rw [ef, og, mul_neg]
 
 example (ef : FnEven f) (og : FnOdd g) : FnEven fun x ↦ f (g x) := by
-  sorry
+  intro x
+  dsimp
+  rw [og, ef, neg_neg]
 
 end
 
@@ -143,8 +155,7 @@ example : s ⊆ s := by
 
 theorem Subset.refl : s ⊆ s := fun x xs ↦ xs
 
-theorem Subset.trans : r ⊆ s → s ⊆ t → r ⊆ t := by
-  sorry
+theorem Subset.trans : r ⊆ s → s ⊆ t → r ⊆ t := fun rs st _ xr ↦ st (rs xr)
 
 end
 
@@ -156,7 +167,7 @@ def SetUb (s : Set α) (a : α) :=
   ∀ x, x ∈ s → x ≤ a
 
 example (h : SetUb s a) (h' : a ≤ b) : SetUb s b :=
-  sorry
+  fun x xs ↦ le_trans (h x xs) h'
 
 end
 
@@ -168,13 +179,13 @@ example (c : ℝ) : Injective fun x ↦ x + c := by
   intro x₁ x₂ h'
   exact (add_left_inj c).mp h'
 
-example {c : ℝ} (h : c ≠ 0) : Injective fun x ↦ c * x := by
-  sorry
+example {c : ℝ} (h : c ≠ 0) : Injective fun x ↦ c * x :=
+  fun _ _ h' ↦ (mul_right_inj' h).mp h'
 
 variable {α : Type*} {β : Type*} {γ : Type*}
 variable {g : β → γ} {f : α → β}
 
-example (injg : Injective g) (injf : Injective f) : Injective fun x ↦ g (f x) := by
-  sorry
+example (injg : Injective g) (injf : Injective f) : Injective fun x ↦ g (f x) :=
+  fun _ _ h ↦ injf (injg h)
 
 end
