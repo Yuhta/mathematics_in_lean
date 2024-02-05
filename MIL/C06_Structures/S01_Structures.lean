@@ -81,14 +81,14 @@ theorem addAlt_comm (a b : Point) : addAlt a b = addAlt b a := by
   repeat' apply add_comm
 
 protected theorem add_assoc (a b c : Point) : (a.add b).add c = a.add (b.add c) := by
-  sorry
+  simp [add, add_assoc]
 
 def smul (r : ℝ) (a : Point) : Point :=
-  sorry
+  ⟨r * a.x, r * a.y, r * a.z⟩
 
 theorem smul_distrib (r : ℝ) (a b : Point) :
     (smul r a).add (smul r b) = smul r (a.add b) := by
-  sorry
+  simp [smul, add, mul_add]
 
 end Point
 
@@ -126,8 +126,22 @@ def midpoint (a b : StandardTwoSimplex) : StandardTwoSimplex
   sum_eq := by field_simp; linarith [a.sum_eq, b.sum_eq]
 
 def weightedAverage (lambda : Real) (lambda_nonneg : 0 ≤ lambda) (lambda_le : lambda ≤ 1)
-    (a b : StandardTwoSimplex) : StandardTwoSimplex :=
-  sorry
+    (a b : StandardTwoSimplex) : StandardTwoSimplex := by
+  let f (a b : ℝ) := lambda * a + (1 - lambda) * b
+  let nonneg {a b : ℝ} (a_nonneg : 0 ≤ a) (b_nonneg : 0 ≤ b) : 0 ≤ f a b := by
+    have : 0 ≤ 1 - lambda := by linarith
+    apply add_nonneg <;> apply mul_nonneg <;> assumption
+  have := calc
+    f a.x b.x + f a.y b.y + f a.z b.z =
+      lambda * (a.x + a.y + a.z) + (1 - lambda) * (b.x + b.y + b.z) := by ring
+    _ = lambda * 1 + (1 - lambda) * 1 := by rw [a.sum_eq, b.sum_eq]
+    _ = 1 := by ring
+  exact ⟨
+    f a.x b.x, f a.y b.y, f a.z b.z,
+    nonneg a.x_nonneg b.x_nonneg,
+    nonneg a.y_nonneg b.y_nonneg,
+    nonneg a.z_nonneg b.z_nonneg,
+    this⟩
 
 end
 
@@ -154,6 +168,22 @@ def midpoint (n : ℕ) (a b : StandardSimplex n) : StandardSimplex n
     simp [div_eq_mul_inv, ← Finset.sum_mul, Finset.sum_add_distrib,
       a.sum_eq_one, b.sum_eq_one]
     field_simp
+
+def weightedAverage (n : ℕ)
+    (w : ℝ) (w_nonneg : 0 ≤ w) (w_le_one : w ≤ 1)
+    (a b : StandardSimplex n) : StandardSimplex n where
+  V i := w * a.V i + (1 - w) * b.V i
+  NonNeg := by
+    have : 0 ≤ 1 - w := by linarith
+    intro i
+    have := a.NonNeg i
+    have := b.NonNeg i
+    apply add_nonneg <;> apply mul_nonneg <;> assumption
+  sum_eq_one := by
+    rw [Finset.sum_add_distrib,
+      ← Finset.mul_sum, ← Finset.mul_sum,
+      a.sum_eq_one, b.sum_eq_one]
+    ring
 
 end StandardSimplex
 
