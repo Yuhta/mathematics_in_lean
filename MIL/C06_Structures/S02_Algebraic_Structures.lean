@@ -55,7 +55,13 @@ def permGroup {α : Type*} : Group₁ (Equiv.Perm α)
 
 structure AddGroup₁ (α : Type*) where
   (add : α → α → α)
-  -- fill in the rest
+  zero : α
+  neg : α → α
+  add_assoc : ∀ x y z : α, add (add x y) z = add x (add y z)
+  add_zero : ∀ x : α, add x zero = x
+  zero_add : ∀ x : α, add zero x = x
+  add_left_neg : ∀ x : α, add (neg x) x = zero
+
 @[ext]
 structure Point where
   x : ℝ
@@ -67,11 +73,22 @@ namespace Point
 def add (a b : Point) : Point :=
   ⟨a.x + b.x, a.y + b.y, a.z + b.z⟩
 
-def neg (a : Point) : Point := sorry
+def neg (a : Point) : Point := ⟨-a.x, -a.y, -a.z⟩
 
-def zero : Point := sorry
+def zero : Point := ⟨0, 0, 0⟩
 
-def addGroupPoint : AddGroup₁ Point := sorry
+def addGroupPoint : AddGroup₁ Point where
+  add := add
+  zero := zero
+  neg := neg
+  add_assoc a b c := by
+    simp [add]
+    constructor
+    . rw [add_assoc]
+    constructor <;> rw [add_assoc]
+  add_zero a := by simp [zero, add]
+  zero_add a := by simp [zero, add]
+  add_left_neg a := by simp [neg, add, zero]
 
 end Point
 
@@ -170,4 +187,32 @@ end
 
 class AddGroup₂ (α : Type*) where
   add : α → α → α
-  -- fill in the rest
+  zero : α
+  neg : α → α
+  add_assoc : ∀ x y z : α, add (add x y) z = add x (add y z)
+  add_zero : ∀ x : α, add x zero = x
+  zero_add : ∀ x : α, add zero x = x
+  add_left_neg : ∀ x : α, add (neg x) x = zero
+
+instance : AddGroup₂ Point where
+  add := Point.add
+  zero := Point.zero
+  neg := Point.neg
+  add_assoc a b c := by
+    simp [Point.add]
+    constructor
+    . rw [add_assoc]
+    constructor <;> rw [add_assoc]
+  add_zero a := by simp [Point.zero, Point.add]
+  zero_add a := by simp [Point.zero, Point.add]
+  add_left_neg a := by simp [Point.neg, Point.add, Point.zero]
+
+section
+
+variable (a b : Point)
+
+#check a + b
+
+def add_def : a + b = Point.add a b := rfl
+
+end
