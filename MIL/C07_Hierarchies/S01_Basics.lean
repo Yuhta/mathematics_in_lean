@@ -114,10 +114,12 @@ example {M : Type} [Monoid₁ M] {a b c : M} (hba : b ⋄ a = 𝟙) (hac : a ⋄
 
 
 lemma inv_eq_of_dia [Group₁ G] {a b : G} (h : a ⋄ b = 𝟙) : a⁻¹ = b :=
-  sorry
+  left_inv_eq_right_inv₁ (inv_dia _) h
 
-lemma dia_inv [Group₁ G] (a : G) : a ⋄ a⁻¹ = 𝟙 :=
-  sorry
+lemma dia_inv [Group₁ G] (a : G) : a ⋄ a⁻¹ = 𝟙 := by
+  have : a⁻¹⁻¹ = a := inv_eq_of_dia (inv_dia _)
+  nth_rw 1 [← this]
+  exact inv_dia a⁻¹
 
 
 
@@ -174,20 +176,21 @@ attribute [simp] Group₃.inv_mul AddGroup₃.neg_add
 
 @[to_additive]
 lemma inv_eq_of_mul [Group₃ G] {a b : G} (h : a * b = 1) : a⁻¹ = b :=
-  sorry
+  left_inv_eq_right_inv' (Group₃.inv_mul _) h
 
 
 @[to_additive (attr := simp)]
 lemma Group₃.mul_inv {G : Type} [Group₃ G] {a : G} : a * a⁻¹ = 1 := by
-  sorry
+  rw [← Group₃.inv_mul a⁻¹, inv_eq_of_mul (inv_mul _)]
 
 @[to_additive]
 lemma mul_left_cancel₃ {G : Type} [Group₃ G] {a b c : G} (h : a * b = a * c) : b = c := by
-  sorry
+  rw [← one_mul b, ← Group₃.inv_mul a, mul_assoc₃, h, ← mul_assoc₃, Group₃.inv_mul, one_mul]
 
 @[to_additive]
 lemma mul_right_cancel₃ {G : Type} [Group₃ G] {a b c : G} (h : b*a = c*a) : b = c := by
-  sorry
+  have : a * a⁻¹ = 1 := Group₃.mul_inv
+  rw [← mul_one b, ← this, ← mul_assoc₃, h, mul_assoc₃, this, mul_one]
 
 class AddCommGroup₃ (G : Type) extends AddGroup₃ G, AddCommMonoid₃ G
 
@@ -205,7 +208,17 @@ class Ring₃ (R : Type) extends AddGroup₃ R, Monoid₃ R, MulZeroClass R wher
 instance {R : Type} [Ring₃ R] : AddCommGroup₃ R :=
 { Ring₃.toAddGroup₃ with
   add_comm := by
-    sorry }
+    intro a b
+    have : a + (a + b) + b = a + (b + a) + b := calc
+      a + (a + b) + b = (1 + 1) * (a + b) := by
+        rw [← add_assoc₃]
+        nth_rw 1 [← one_mul a, ← one_mul b]
+        nth_rw 2 [← one_mul a, ← one_mul b]
+        rw [add_assoc₃, ← Ring₃.right_distrib, ← Ring₃.right_distrib, ← Ring₃.left_distrib]
+      _ = a + (b + a) + b := by
+        rw [Ring₃.right_distrib, Ring₃.left_distrib, one_mul, one_mul, ← add_assoc₃, add_assoc₃ a b a]
+    have : a + (a + b) = a + (b + a) := add_right_cancel₃ this
+    exact add_left_cancel₃ this }
 
 instance : Ring₃ ℤ where
   add := (· + ·)
@@ -231,13 +244,33 @@ class LE₁ (α : Type) where
 
 @[inherit_doc] infix:50 " ≤₁ " => LE₁.le
 
-class Preorder₁ (α : Type)
+class LT₁ (α : Type) where
+  lt : α → α → Prop
 
-class PartialOrder₁ (α : Type)
+@[inherit_doc] infix:50 " <₁ " => LT₁.lt
 
-class OrderedCommMonoid₁ (α : Type)
+class Preorder₁ (α : Type) extends LE₁ α, LT₁ α where
+  le_refl (a : α) : a ≤₁ a
+  le_trans {a b c : α} : a ≤₁ b → b ≤₁ c → a ≤₁ c
+  lt (a b : α) := a ≤₁ b ∧ ¬b ≤₁ a
+  lt_iff_le_not_le {a b : α} : a <₁ b ↔ a ≤₁ b ∧ ¬b ≤₁ a := by intros; rfl
+
+class PartialOrder₁ (α : Type) extends Preorder₁ α where
+  le_antisymm {a b : α} : a ≤₁ b → b ≤₁ a → a = b
+
+class OrderedCommMonoid₁ (α : Type) extends PartialOrder₁ α, CommMonoid₃ α where
+  mul_le_mul_left {a b : α} (a_le_b: a ≤₁ b) (c : α) : c * a ≤₁ c * b
 
 instance : OrderedCommMonoid₁ ℕ where
+  le := (· ≤ ·)
+  le_refl := le_refl
+  le_trans := le_trans
+  le_antisymm := le_antisymm
+  mul_assoc₃ := mul_assoc
+  one_mul := one_mul
+  mul_one := mul_one
+  mul_comm := mul_comm
+  mul_le_mul_left := mul_le_mul_left'
 
 class SMul₃ (α : Type) (β : Type) where
   /-- Scalar multiplication -/
@@ -269,13 +302,26 @@ def zsmul₁ {M : Type*} [Zero M] [Add M] [Neg M] : ℤ → M → M
   | Int.ofNat n, a => nsmul₁ n a
   | Int.negSucc n, a => -nsmul₁ n.succ a
 
+lemma nsmul₁_add {M : Type} [AddCommGroup₃ M] {a : ℕ} {m n : M} :
+    nsmul₁ a (m + n) = nsmul₁ a m + nsmul₁ a n := by
+  induction' a with a ih
+  . simp [nsmul₁]
+  simp [nsmul₁]
+  rw [ih, ← add_assoc₃, ← add_assoc₃, add_assoc₃ m (nsmul₁ a m)]
+  rw [AddCommGroup₃.add_comm (nsmul₁ a m) n, ← add_assoc₃]
+
 instance abGrpModule (A : Type) [AddCommGroup₃ A] : Module₁ ℤ A where
   smul := zsmul₁
-  zero_smul := sorry
-  one_smul := sorry
+  zero_smul := by intro m; rfl
+  one_smul := by intro m; simp [zsmul₁, nsmul₁]
   mul_smul := sorry
   add_smul := sorry
-  smul_add := sorry
+  smul_add := by
+    intro a m n
+    induction' a with a a
+    . simp [zsmul₁, nsmul₁_add]
+    simp [zsmul₁, nsmul₁, nsmul₁_add]
+    sorry
 
 #synth Module₁ ℤ ℤ -- abGrpModule ℤ
 
