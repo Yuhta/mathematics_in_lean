@@ -82,21 +82,24 @@ open Ideal Quotient Function
 
 /-- The homomorphism from ``R ⧸ ⨅ i, I i`` to ``Π i, R ⧸ I i`` featured in the Chinese
   Remainder Theorem. -/
-def chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i :=
-  sorry
+def chineseMap (I : ι → Ideal R) : (R ⧸ ⨅ i, I i) →+* Π i, R ⧸ I i := by
+  apply Ideal.Quotient.lift
+  rw [← ker_Pi_Quotient_mk I]
+  intro a ak
+  exact ak
 
 lemma chineseMap_mk (I : ι → Ideal R) (x : R) :
     chineseMap I (Quotient.mk _ x) = fun i : ι ↦ Ideal.Quotient.mk (I i) x :=
-  sorry
+  rfl
 
 lemma chineseMap_mk' (I : ι → Ideal R) (x : R) (i : ι) :
     chineseMap I (mk _ x) i = mk (I i) x :=
-  sorry
+  rfl
 
 #check injective_lift_iff
 
 lemma chineseMap_inj (I : ι → Ideal R) : Injective (chineseMap I) := by
-  sorry
+  rw [chineseMap, injective_lift_iff, ker_Pi_Quotient_mk]
 
 #check IsCoprime
 #check isCoprime_iff_add
@@ -118,10 +121,22 @@ theorem isCoprime_Inf {I : Ideal R} {J : ι → Ideal R} {s : Finset ι}
       rw [Finset.iInf_insert, inf_comm, one_eq_top, eq_top_iff, ← one_eq_top]
       set K := ⨅ j ∈ s, J j
       calc
-        1 = I + K                  := sorry
-        _ = I + K * (I + J i)      := sorry
-        _ = (1 + K) * I + K * J i  := sorry
-        _ ≤ I + K ⊓ J i            := sorry
+        1 = I + K                  := by
+          symm
+          apply hs
+          intro j js
+          apply hf
+          apply s.mem_insert_of_mem
+          exact js
+        _ = I + K * (I + J i)      := by
+          rw [hf, mul_one]
+          apply s.mem_insert_self
+        _ = (1 + K) * I + K * J i  := by ring
+        _ ≤ I + K ⊓ J i            := by
+          simp
+          apply le_trans Ideal.mul_le_inf
+          exact le_sup_right
+
 lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}
     (hI : ∀ i j, i ≠ j → IsCoprime (I i) (I j)) : Surjective (chineseMap I) := by
   classical
@@ -130,11 +145,27 @@ lemma chineseMap_surj [Fintype ι] {I : ι → Ideal R}
   have key : ∀ i, ∃ e : R, mk (I i) e = 1 ∧ ∀ j, j ≠ i → mk (I j) e = 0 := by
     intro i
     have hI' : ∀ j ∈ ({i} : Finset ι)ᶜ, IsCoprime (I i) (I j) := by
-      sorry
-    sorry
+      intro j hj
+      apply hI
+      by_contra h
+      simp [h] at hj
+    rcases isCoprime_iff_exists.mp (isCoprime_Inf hI') with ⟨i', hi', j', hj', hi'j'⟩
+    use j'
+    constructor
+    . rw [eq_sub_of_add_eq' hi'j', map_sub, eq_zero_iff_mem.mpr hi', sub_zero]
+      rfl
+    intro j hj
+    rw [eq_zero_iff_mem]
+    simp at hj'
+    apply hj'
+    exact hj
   choose e he using key
   use mk _ (∑ i, f i * e i)
-  sorry
+  ext i
+  rw [chineseMap_mk', map_sum, Fintype.sum_eq_single i]
+  rw [map_mul (mk (I i)) (f i) (e i), hf i, (he i).1, mul_one]
+  intro j hj
+  rw [map_mul (mk (I i)) (f j) (e j), (he j).2 i hj.symm, mul_zero]
 
 noncomputable def chineseIso [Fintype ι] (f : ι → Ideal R)
     (hf : ∀ i j, i ≠ j → IsCoprime (f i) (f j)) : (R ⧸ ⨅ i, f i) ≃+* Π i, R ⧸ f i :=
@@ -204,7 +235,7 @@ example : aroots (X ^ 2 + 1 : ℝ[X]) ℂ = {Complex.I, -I} := by
     intro H
     apply_fun eval 0 at H
     simp [eval] at H
-  simp only [factored, roots_mul p_ne_zero, roots_X_sub_C]
+  rw [factored, roots_mul p_ne_zero, roots_X_sub_C, roots_X_sub_C]
   rfl
 
 -- Mathlib knows about D'Alembert-Gauss theorem: ``ℂ`` is algebraically closed.
