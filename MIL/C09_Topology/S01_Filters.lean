@@ -6,15 +6,35 @@ open Set Filter Topology
 def principal {α : Type*} (s : Set α) : Filter α
     where
   sets := { t | s ⊆ t }
-  univ_sets := sorry
-  sets_of_superset := sorry
-  inter_sets := sorry
+  univ_sets := by simp
+  sets_of_superset := by
+    simp
+    intro x y sx xy
+    exact sx.trans xy
+  inter_sets := by
+    simp
+    intro x y sx sy
+    exact ⟨sx, sy⟩
 
 example : Filter ℕ :=
   { sets := { s | ∃ a, ∀ b, a ≤ b → b ∈ s }
-    univ_sets := sorry
-    sets_of_superset := sorry
-    inter_sets := sorry }
+    univ_sets := by simp
+    sets_of_superset := by
+      simp
+      intro x y a h xy
+      use a
+      intro b ab
+      apply xy
+      apply h
+      exact ab
+    inter_sets := by
+      simp
+      intro x y a₁ h₁ a₂ h₂
+      use max a₁ a₂
+      intro b h
+      constructor
+      . apply h₁; exact le_trans (le_max_left a₁ a₂) h
+      . apply h₂; exact le_trans (le_max_right a₁ a₂) h }
 
 def Tendsto₁ {X Y : Type*} (f : X → Y) (F : Filter X) (G : Filter Y) :=
   ∀ V ∈ G, f ⁻¹' V ∈ F
@@ -33,8 +53,11 @@ example {X Y : Type*} (f : X → Y) (F : Filter X) (G : Filter Y) :
     ∀ {α β γ} {f : Filter α} {m : α → β} {m' : β → γ}, map m' (map m f) = map (m' ∘ m) f)
 
 example {X Y Z : Type*} {F : Filter X} {G : Filter Y} {H : Filter Z} {f : X → Y} {g : Y → Z}
-    (hf : Tendsto₁ f F G) (hg : Tendsto₁ g G H) : Tendsto₁ (g ∘ f) F H :=
-  sorry
+    (hf : Tendsto₁ f F G) (hg : Tendsto₁ g G H) : Tendsto₁ (g ∘ f) F H := by
+  suffices map (g ∘ f) F ≤ H by trivial
+  rw [← map_map]
+  calc map g (map f F) ≤ map g G := map_mono hf
+    _ ≤ H := hg
 
 variable (f : ℝ → ℝ) (x₀ y₀ : ℝ)
 
@@ -56,8 +79,13 @@ example : 𝓝 (x₀, y₀) = 𝓝 x₀ ×ˢ 𝓝 y₀ :=
 
 example (f : ℕ → ℝ × ℝ) (x₀ y₀ : ℝ) :
     Tendsto f atTop (𝓝 (x₀, y₀)) ↔
-      Tendsto (Prod.fst ∘ f) atTop (𝓝 x₀) ∧ Tendsto (Prod.snd ∘ f) atTop (𝓝 y₀) :=
-  sorry
+      Tendsto (Prod.fst ∘ f) atTop (𝓝 x₀) ∧ Tendsto (Prod.snd ∘ f) atTop (𝓝 y₀) := by
+  rw [nhds_prod_eq]
+  unfold Tendsto
+  unfold SProd.sprod
+  unfold Filter.instSProd
+  unfold Filter.prod
+  rw [le_inf_iff, ← map_le_iff_le_comap, ← map_le_iff_le_comap, map_map, map_map]
 
 example (x₀ : ℝ) : HasBasis (𝓝 x₀) (fun ε : ℝ ↦ 0 < ε) fun ε ↦ Ioo (x₀ - ε) (x₀ + ε) :=
   nhds_basis_Ioo_pos x₀
@@ -100,6 +128,12 @@ example (P Q R : ℕ → Prop) (hP : ∀ᶠ n in atTop, P n) (hQ : ∀ᶠ n in a
 #check neBot_of_le
 
 example (u : ℕ → ℝ) (M : Set ℝ) (x : ℝ) (hux : Tendsto u atTop (𝓝 x))
-    (huM : ∀ᶠ n in atTop, u n ∈ M) : x ∈ closure M :=
-  sorry
-
+    (huM : ∀ᶠ n in atTop, u n ∈ M) : x ∈ closure M := by
+  rw [mem_closure_iff_clusterPt]
+  unfold ClusterPt
+  unfold Tendsto at hux
+  have : map u atTop ≤ 𝓝 x ⊓ 𝓟 M := by
+    apply le_inf hux
+    have huM : M ∈ map u atTop := huM
+    rwa [← le_principal_iff] at huM
+  exact neBot_of_le this
