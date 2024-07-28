@@ -92,23 +92,60 @@ example {ι : Type*} [CompleteSpace E] {g : ι → E →L[𝕜] F} (h : ∀ x, �
   -- sequence of subsets consisting of those `x : E` with norms `‖g i x‖` bounded by `n`
   let e : ℕ → Set E := fun n ↦ ⋂ i : ι, { x : E | ‖g i x‖ ≤ n }
   -- each of these sets is closed
-  have hc : ∀ n : ℕ, IsClosed (e n)
-  sorry
+  have hc : ∀ n : ℕ, IsClosed (e n) := by
+    intro n
+    apply isClosed_iInter
+    intro i
+    apply isClosed_le _ continuous_const
+    exact (g i).cont.norm
   -- the union is the entire space; this is where we use `h`
-  have hU : (⋃ n : ℕ, e n) = univ
-  sorry
+  have hU : (⋃ n : ℕ, e n) = univ := by
+    rw [eq_univ_iff_forall]
+    intro x
+    have ⟨C, hC⟩ := h x
+    have ⟨n, hn⟩ := exists_nat_ge C
+    simp
+    use n
+    intro i
+    exact le_trans (hC i) hn
   /- apply the Baire category theorem to conclude that for some `m : ℕ`,
        `e m` contains some `x` -/
-  obtain ⟨m, x, hx⟩ : ∃ m, ∃ x, x ∈ interior (e m) := sorry
-  obtain ⟨ε, ε_pos, hε⟩ : ∃ ε > 0, ball x ε ⊆ interior (e m) := sorry
-  obtain ⟨k, hk⟩ : ∃ k : 𝕜, 1 < ‖k‖ := sorry
+  have ⟨m, x, hx⟩ : ∃ m, ∃ x, x ∈ interior (e m) := nonempty_interior_of_iUnion_of_closed hc hU
+  have ⟨ε, ε_pos, hε⟩ : ∃ ε > 0, ball x ε ⊆ interior (e m) := by
+    have : IsOpen (interior (e m)) := isOpen_interior
+    rw [Metric.isOpen_iff] at this
+    exact this x hx
+  have ⟨k, hk⟩ : ∃ k : 𝕜, 1 < ‖k‖ := NontriviallyNormedField.non_trivial
   -- show all elements in the ball have norm bounded by `m` after applying any `g i`
-  have real_norm_le : ∀ z ∈ ball x ε, ∀ (i : ι), ‖g i z‖ ≤ m
-  sorry
-  have εk_pos : 0 < ε / ‖k‖ := sorry
+  have real_norm_le : ∀ z ∈ ball x ε, ∀ (i : ι), ‖g i z‖ ≤ m := by
+    intro z hz i
+    have hz := interior_subset (hε hz)
+    simp at hz
+    exact hz i
+  have εk_pos : 0 < ε / ‖k‖ := by
+    apply div_pos ε_pos
+    exact lt_trans zero_lt_one hk
   refine' ⟨(m + m : ℕ) / (ε / ‖k‖), fun i ↦ ContinuousLinearMap.op_norm_le_of_shell ε_pos _ hk _⟩
-  sorry
-  sorry
+  . apply div_nonneg (m + m).cast_nonneg
+    exact le_of_lt εk_pos
+  intro y y_lo y_hi
+  calc
+    ‖g i y‖ ≤ ‖g i (y + x)‖ + ‖g i x‖ := by
+      nth_rw 1 [← add_sub_cancel y x, map_sub]
+      apply norm_sub_le
+    _ ≤ m + m := by
+      apply add_le_add
+      . apply real_norm_le _ _ i
+        rwa [mem_ball_iff_norm, add_sub_cancel]
+      apply real_norm_le _ _ i
+      exact mem_ball_self ε_pos
+    _ ≤ ↑(m + m) / (ε / ‖k‖) * ‖y‖ := by
+      nth_rw 1 [← one_mul (m + m : ℝ), ← Nat.cast_add, div_mul_comm]
+      apply mul_le_mul_of_le_of_le
+      . rwa [← one_le_div εk_pos] at y_lo
+      . exact le_of_eq rfl
+      . exact zero_le_one
+      . exact (m + m).cast_nonneg
 
 end
 
